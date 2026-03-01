@@ -1,14 +1,16 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from transformers import pipeline
+from textblob import TextBlob
 
 app = FastAPI()
 
-# Load model once at startup
-sentiment_pipeline = pipeline(
-    "sentiment-analysis",
-    model="distilbert-base-uncased-finetuned-sst-2-english"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 class CommentRequest(BaseModel):
@@ -18,17 +20,18 @@ class CommentRequest(BaseModel):
 async def analyze_comment(request: CommentRequest):
     if not request.comment or not request.comment.strip():
         raise HTTPException(status_code=422, detail="Comment cannot be empty")
-    try:
-        result = sentiment_pipeline(request.comment)[0]
-        label = result["label"].lower()
-        score = result["score"]
 
-        if label == "positive":
+    try:
+        blob = TextBlob(request.comment)
+        polarity = blob.sentiment.polarity
+        # polarity is between -1 (negative) and +1 (positive)
+
+        if polarity > 0.1:
             sentiment = "positive"
-            rating = 5 if score > 0.9 else 4
-        elif label == "negative":
+            rating = 5 if polarity > 0.5 else 4
+        elif polarity < -0.1:
             sentiment = "negative"
-            rating = 1 if score > 0.9 else 2
+            rating = 1 if polarity < -0.5 else 2
         else:
             sentiment = "neutral"
             rating = 3
