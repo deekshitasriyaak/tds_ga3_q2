@@ -1,7 +1,5 @@
 fastapi
 uvicorn
-openai
 pydantic
-fastapi
-uvicorn
-pydantic
+transformers
+torch
